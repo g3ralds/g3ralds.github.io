@@ -30,9 +30,16 @@
   <!-- Reveal overlay -->
   <div id="overlay"
        class="fixed inset-0 z-10 hidden flex items-center justify-center pointer-events-none">
-    <div class="text-white text-5xl font-extrabold animate-bounce drop-shadow-lg">
+    <div class="text-white text-5xl font-extrabold animate-bounce drop-shadow-lg"
+      style="text-shadow:
+        0 0 8px #f472b6,
+        0 0 16px #f472b6,
+        2px 2px 0 #be185d,
+        -2px -2px 0 #be185d,
+        0 0 2px #fff,
+        0 0 32px #f472b6;
+        text-stroke: 4px #be185d;">
       É uma menina!
-      <span class="text-pink-500">👶</span>
     </div>
   </div>
 
@@ -55,35 +62,46 @@
     const bird = {
       x: 60,
       y: canvas.height / 2,
-      r: 12,
+      r: 30,
       v: 0,
       g: 0.15, // Reduced gravity
       lift: -3 // Slightly stronger lift
     };
 
-    let pipes = [];
-    const pipeW = 60;
-    const gap = 150; // Increased gap for easier play
-    const speed = 1.5; // Slower pipes
+    let clouds = [];
+    const cloudW = 220; // Increased from 150
+    const cloudH = 140; // Increased from 90
+    const speed = 3.5; // Slower pipes
     let frame = 0;
-    let score = 0;
+    let score = 280; // Start at 1000 and count down
     let playing = true;
+    let won = false;
     let sparkles = [];
     let showSparkles = false;
+
+    // Preload cloud image
+    const cloudImg = new Image();
+    cloudImg.src = 'cloud.png';
+
+    // Preload stork image
+    const storkImg = new Image();
+    storkImg.src = 'stork.png';
 
     function reset() {
       bird.y = canvas.height / 2;
       bird.v = 0;
-      pipes = [];
+      clouds = [];
       frame = 0;
-      score = 0;
+      score = 280; // Reset score to 1000
       playing = true;
+      won = false;
       document.getElementById('overlay').classList.add('hidden');
       requestAnimationFrame(loop);
     }
 
     function flap() {
-      if (!playing) return; // Ignore input if not playing
+      if (won) return; // Only block input if player won
+      if (!playing) return reset(); // On death, allow reset
       bird.v = bird.lift;
     }
 
@@ -91,20 +109,30 @@
     canvas.addEventListener('click', flap);
 
     function drawBird() {
-      ctx.beginPath();
-      ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI * 2);
-      ctx.fillStyle = '#facc15';
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#d97706';
-      ctx.stroke();
+      // Draw the stork image centered at the bird's position
+      const storkWidth = 120;
+      const storkHeight = 90;
+      if (storkImg.complete && storkImg.naturalWidth !== 0) {
+        ctx.drawImage(storkImg, bird.x - storkWidth / 2, bird.y - storkHeight / 2, storkWidth, storkHeight);
+      } else {
+        storkImg.onload = () => {
+          ctx.drawImage(storkImg, bird.x - storkWidth / 2, bird.y - storkHeight / 2, storkWidth, storkHeight);
+        };
+      }
     }
 
-    function drawPipes() {
-      ctx.fillStyle = '#047857';
-      pipes.forEach(p => {
-        ctx.fillRect(p.x, 0, pipeW, p.top);
-        ctx.fillRect(p.x, p.bottom, pipeW, canvas.height - p.bottom);
+    function drawCloud(cx, cy, w, h) {
+      if (cloudImg.complete) {
+        ctx.drawImage(cloudImg, cx - w / 2, cy - h / 2, w, h);
+      } else {
+        cloudImg.onload = () => {
+          ctx.drawImage(cloudImg, cx - w / 2, cy - h / 2, w, h);
+        };
+      }
+    }
+    function drawClouds() {
+      clouds.forEach(c => {
+        drawCloud(c.x, c.y, cloudW, cloudH);
       });
     }
 
@@ -158,7 +186,7 @@
 
     function loop() {
       if (!playing) {
-        if (showSparkles) {
+        if (won && showSparkles) {
           updateSparkles();
           drawSparkles();
           requestAnimationFrame(loop);
@@ -172,51 +200,91 @@
       bird.v += bird.g;
       bird.y += bird.v;
 
-      // Spawn pipes
-      if (frame % 150 === 0) {
-        const top = Math.random() * (canvas.height - gap - 100) + 50;
-        pipes.push({ x: canvas.width, top, bottom: top + gap, scored: false });
-      }
+      if (frame % 100 === 0) {
+        const minY = 20;
+        const maxY = canvas.height - cloudH - 40;
+        const totalClouds = 6; // More clouds
+        const minGap = cloudH * 2; // Increased gap for more vertical space
+        const passageHeight = bird.r * 3.5 + 18; // Minimum passage height
+        let positions = [];
 
-      // Update pipes
-      pipes.forEach(p => {
-        p.x -= speed;
+        // Generate possible Y positions
+        let attempts = 0;
+        while (positions.length < totalClouds && attempts < 40) {
+          let y = Math.random() * (maxY - minY) + minY;
+          if (positions.every(pos => Math.abs(pos - y) > minGap)) {
+        positions.push(y);
+          }
+          attempts++;
+        }
+        // Sort for easier passage calculation
+        positions = positions.sort((a, b) => a - b);
 
-        // Collision
-        if (
-          bird.x + bird.r > p.x &&
-          bird.x - bird.r < p.x + pipeW &&
-          (bird.y - bird.r < p.top || bird.y + bird.r > p.bottom)
-        ) playing = false;
-        
-        // Score
-        if (!p.scored && p.x + pipeW < bird.x) {
-          score++;
-          p.scored = true;
-          if (score > 2) {
-            playing = false;
-            document.getElementById('overlay').classList.remove('hidden');
-            createSparkles();
-            requestAnimationFrame(loop);
+        // Ensure at least one passage is possible
+        let passageExists = false;
+        for (let i = 0; i <= positions.length; i++) {
+          let prev = i === 0 ? minY - cloudH : positions[i - 1];
+          let next = i === positions.length ? maxY + cloudH : positions[i];
+          if (next - prev - cloudH > passageHeight) {
+        passageExists = true;
+        break;
           }
         }
+        // If not possible, reduce clouds until possible
+        while (!passageExists && positions.length > 2) {
+          positions.pop();
+          positions = positions.sort((a, b) => a - b);
+          passageExists = false;
+          for (let i = 0; i <= positions.length; i++) {
+        let prev = i === 0 ? minY - cloudH : positions[i - 1];
+        let next = i === positions.length ? maxY + cloudH : positions[i];
+        if (next - prev - cloudH > passageHeight) {
+          passageExists = true;
+          break;
+        }
+          }
+        }
+
+        positions.forEach(y => {
+          clouds.push({ x: canvas.width + cloudW / 2, y });
+        });
+      }
+
+      // Update clouds
+      clouds.forEach(c => {
+        c.x -= speed;
+        // Collision (rectangular collider 35% of image size)
+        const colliderW = cloudW * 0.35;
+        const colliderH = cloudH * 0.35;
+        if (
+          bird.x + bird.r > c.x - colliderW / 2 &&
+          bird.x - bird.r < c.x + colliderW / 2 &&
+          bird.y + bird.r > c.y - colliderH / 2 &&
+          bird.y - bird.r < c.y + colliderH / 2
+        ) playing = false;
       });
-
-      // Remove off-screen pipes
-      pipes = pipes.filter(p => p.x + pipeW > 0);
-
+      // Remove off-screen clouds
+      clouds = clouds.filter(c => c.x + cloudW / 2 > 0);
       // Bounds
       if (bird.y + bird.r > canvas.height || bird.y - bird.r < 0) playing = false;
 
-      drawPipes();
+      // Score countdown
+      if (frame % 5 === 0 && score > 0) score--;
+      if (score === 0 && playing) {
+        playing = false;
+        won = true;
+        document.getElementById('overlay').classList.remove('hidden');
+        createSparkles();
+        requestAnimationFrame(loop);
+      }
+
+      drawClouds();
       drawBird();
       drawScore();
-
       if (showSparkles) {
         updateSparkles();
         drawSparkles();
       }
-
       frame++;
       requestAnimationFrame(loop);
     }
