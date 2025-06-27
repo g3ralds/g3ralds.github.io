@@ -3,8 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <title>Flappy Baby Reveal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      background: #bae6fd;
+    }
+    #gameCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      display: block;
+    }
+  </style>
 </head>
 <body class="flex items-center justify-center min-h-screen bg-blue-100">
   <!-- Reveal overlay -->
@@ -18,13 +38,19 @@
 
   <!-- Game canvas -->
   <canvas id="gameCanvas"
-          width="400"
-          height="600"
-          class="bg-sky-300 border-4 border-cyan-700 rounded-xl shadow-xl"></canvas>
+        class="bg-sky-300 border-4 border-cyan-700 rounded-xl shadow-xl"></canvas>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
 
     const bird = {
       x: 60,
@@ -194,6 +220,9 @@
       frame++;
       requestAnimationFrame(loop);
     }
+
+    // Prevent scrolling on mobile
+    window.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
 
     loop();
   </script>
