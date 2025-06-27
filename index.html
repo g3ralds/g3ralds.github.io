@@ -38,7 +38,7 @@
 
   <!-- Game canvas -->
   <canvas id="gameCanvas"
-        class="bg-sky-300 border-4 border-cyan-700 rounded-xl shadow-xl"></canvas>
+        class="bg-sky-300 border-4 border-cyan-700 shadow-xl"></canvas>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
@@ -83,7 +83,7 @@
     }
 
     function flap() {
-      if (!playing) return reset();
+      if (!playing) return; // Ignore input if not playing
       bird.v = bird.lift;
     }
 
