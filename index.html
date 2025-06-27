@@ -150,10 +150,12 @@
 
     function createSparkles(count = 60) {
       sparkles = [];
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       for (let i = 0; i < count; i++) {
         sparkles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
+          x: Math.random() * w,
+          y: Math.random() * h,
           r: Math.random() * 4 + 2,
           dx: (Math.random() - 0.5) * 2,
           dy: (Math.random() - 1.5) * 3,
