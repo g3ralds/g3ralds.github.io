@@ -52,8 +52,13 @@
     const ctx = canvas.getContext('2d');
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      ctx.scale(dpr, dpr);
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -61,7 +66,7 @@
 
     const bird = {
       x: 60,
-      y: canvas.height / 2,
+      y: window.innerHeight / 2,
       r: 30,
       v: 0,
       g: 0.15, // Reduced gravity
@@ -88,7 +93,7 @@
     storkImg.src = 'stork.png';
 
     function reset() {
-      bird.y = canvas.height / 2;
+      bird.y = window.innerHeight / 2;
       bird.v = 0;
       clouds = [];
       frame = 0;
@@ -96,6 +101,7 @@
       playing = true;
       won = false;
       document.getElementById('overlay').classList.add('hidden');
+      spawnClouds(); // Spawn clouds immediately
       requestAnimationFrame(loop);
     }
 
@@ -184,6 +190,49 @@
       if (sparkles.length === 0) showSparkles = false;
     }
 
+    function spawnClouds() {
+      const minY = 20;
+      const maxY = window.innerHeight - cloudH - 40;
+      const totalClouds = 6;
+      const minGap = cloudH * 2;
+      const passageHeight = bird.r * 3.5 + 18;
+      let positions = [];
+      let attempts = 0;
+      while (positions.length < totalClouds && attempts < 40) {
+        let y = Math.random() * (maxY - minY) + minY;
+        if (positions.every(pos => Math.abs(pos - y) > minGap)) {
+          positions.push(y);
+        }
+        attempts++;
+      }
+      positions = positions.sort((a, b) => a - b);
+      let passageExists = false;
+      for (let i = 0; i <= positions.length; i++) {
+        let prev = i === 0 ? minY - cloudH : positions[i - 1];
+        let next = i === positions.length ? maxY + cloudH : positions[i];
+        if (next - prev - cloudH > passageHeight) {
+          passageExists = true;
+          break;
+        }
+      }
+      while (!passageExists && positions.length > 2) {
+        positions.pop();
+        positions = positions.sort((a, b) => a - b);
+        passageExists = false;
+        for (let i = 0; i <= positions.length; i++) {
+          let prev = i === 0 ? minY - cloudH : positions[i - 1];
+          let next = i === positions.length ? maxY + cloudH : positions[i];
+          if (next - prev - cloudH > passageHeight) {
+            passageExists = true;
+            break;
+          }
+        }
+      }
+      positions.forEach(y => {
+        clouds.push({ x: window.innerWidth + cloudW / 2, y });
+      });
+    }
+
     function loop() {
       if (!playing) {
         if (won && showSparkles) {
@@ -200,54 +249,8 @@
       bird.v += bird.g;
       bird.y += bird.v;
 
-      if (frame % 100 === 0) {
-        const minY = 20;
-        const maxY = canvas.height - cloudH - 40;
-        const totalClouds = 6; // More clouds
-        const minGap = cloudH * 2; // Increased gap for more vertical space
-        const passageHeight = bird.r * 3.5 + 18; // Minimum passage height
-        let positions = [];
-
-        // Generate possible Y positions
-        let attempts = 0;
-        while (positions.length < totalClouds && attempts < 40) {
-          let y = Math.random() * (maxY - minY) + minY;
-          if (positions.every(pos => Math.abs(pos - y) > minGap)) {
-        positions.push(y);
-          }
-          attempts++;
-        }
-        // Sort for easier passage calculation
-        positions = positions.sort((a, b) => a - b);
-
-        // Ensure at least one passage is possible
-        let passageExists = false;
-        for (let i = 0; i <= positions.length; i++) {
-          let prev = i === 0 ? minY - cloudH : positions[i - 1];
-          let next = i === positions.length ? maxY + cloudH : positions[i];
-          if (next - prev - cloudH > passageHeight) {
-        passageExists = true;
-        break;
-          }
-        }
-        // If not possible, reduce clouds until possible
-        while (!passageExists && positions.length > 2) {
-          positions.pop();
-          positions = positions.sort((a, b) => a - b);
-          passageExists = false;
-          for (let i = 0; i <= positions.length; i++) {
-        let prev = i === 0 ? minY - cloudH : positions[i - 1];
-        let next = i === positions.length ? maxY + cloudH : positions[i];
-        if (next - prev - cloudH > passageHeight) {
-          passageExists = true;
-          break;
-        }
-          }
-        }
-
-        positions.forEach(y => {
-          clouds.push({ x: canvas.width + cloudW / 2, y });
-        });
+      if (frame % 100 === 0 && frame !== 0) {
+        spawnClouds();
       }
 
       // Update clouds
