@@ -264,12 +264,23 @@
         drawClouds();
         drawBird();
         drawScore();
-        // No physics, no movement, no score countdown
         requestAnimationFrame(loop);
         return;
       }
 
       if (!playing) {
+        if (!won) {
+          // On death, reset the game to initial state and show overlay
+          waitingToStart = true;
+          startOverlay.classList.remove('hidden');
+          reset();
+          // Draw the initial state after reset
+          drawClouds();
+          drawBird();
+          drawScore();
+          requestAnimationFrame(loop);
+          return;
+        }
         if (won && showSparkles) {
           updateSparkles();
           drawSparkles();
