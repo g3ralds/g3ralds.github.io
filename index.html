@@ -47,9 +47,20 @@
   <canvas id="gameCanvas"
         class="bg-sky-300 border-4 border-cyan-700 shadow-xl"></canvas>
 
+  <!-- Start overlay -->
+  <div id="startOverlay"
+       class="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-40">
+    <div class="text-white text-4xl font-bold drop-shadow-lg animate-pulse">
+      Clique para voar!
+    </div>
+  </div>
+
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const startOverlay = document.getElementById('startOverlay');
+    let started = false;
+    let waitingToStart = true;
 
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
@@ -102,7 +113,6 @@
       won = false;
       document.getElementById('overlay').classList.add('hidden');
       spawnClouds(); // Spawn clouds immediately
-      requestAnimationFrame(loop);
     }
 
     function flap() {
@@ -235,7 +245,30 @@
       });
     }
 
+    function startGame() {
+      if (!waitingToStart) return;
+      waitingToStart = false;
+      started = true;
+      startOverlay.classList.add('hidden');
+      reset();
+    }
+
+    startOverlay.addEventListener('click', startGame);
+    startOverlay.addEventListener('touchstart', startGame);
+
     function loop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (waitingToStart) {
+        // Draw the initial game state (clouds, stork, score)
+        drawClouds();
+        drawBird();
+        drawScore();
+        // No physics, no movement, no score countdown
+        requestAnimationFrame(loop);
+        return;
+      }
+
       if (!playing) {
         if (won && showSparkles) {
           updateSparkles();
@@ -244,8 +277,6 @@
         }
         return;
       }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Physics
       bird.v += bird.g;
@@ -297,6 +328,7 @@
     // Prevent scrolling on mobile
     window.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
 
+    // Always start the loop so the game is visible behind the overlay
     loop();
   </script>
 </body>
